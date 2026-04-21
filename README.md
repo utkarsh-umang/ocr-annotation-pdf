@@ -56,6 +56,37 @@ python3 -m venv .venv
 
 ---
 
+## 4) Docker (local) + Cloud Run (deploy)
+
+### Build the image
+
+```bash
+docker build -t ocr-engine:local .
+```
+
+### Run locally
+
+Cloud Run expects the container to listen on `$PORT` (usually 8080). Locally you can map any host port:
+
+```bash
+docker run --rm -p 8081:8080 \
+  -e PORT=8080 \
+  -e NANONETS_API_KEY="YOUR_KEY" \
+  ocr-engine:local
+```
+
+Then open `http://localhost:8081`.
+
+### Deploy to Cloud Run (quick path)
+
+- **Build & push** the image to a registry (Artifact Registry / GCR).
+- **Deploy** to Cloud Run and set the environment variable:
+  - `NANONETS_API_KEY`
+
+Cloud Run will provide a public URL that serves the UI and proxies OCR via `/api/ocr`.
+
+---
+
 ## Assumptions (current MVP)
 
 - **No user/session concept**: there is no authentication or session persistence; a refresh loses all OCR results in memory.

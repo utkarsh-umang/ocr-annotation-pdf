@@ -36,7 +36,8 @@ _load_env()
 
 API_KEY      = os.environ.get("NANONETS_API_KEY", "")
 NANONETS_URL = "https://extraction-api.nanonets.com/api/v1/extract/sync"
-PORT         = 8765
+PORT         = int(os.environ.get("PORT", "8765"))
+HOST         = os.environ.get("HOST", "0.0.0.0")
 
 if not API_KEY:
     print("WARNING: NANONETS_API_KEY not found in .env — OCR calls will fail.")
@@ -127,8 +128,8 @@ class Handler(BaseHTTPRequestHandler):
 
 # ── Entry point ───────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    server = HTTPServer(("localhost", PORT), Handler)
-    print(f"\n  OCR Engine → http://localhost:{PORT}\n  Press Ctrl+C to stop.\n")
+    server = HTTPServer((HOST, PORT), Handler)
+    print(f"\n  OCR Engine → http://{HOST}:{PORT}\n  Press Ctrl+C to stop.\n")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

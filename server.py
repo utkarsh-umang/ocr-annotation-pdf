@@ -75,6 +75,18 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(body)
             except FileNotFoundError:
                 self._text(404, "index.html not found")
+        elif path == "/favicon.ico":
+            try:
+                with open("favicon.ico", "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/x-icon")
+                self.send_header("Content-Length", str(len(body)))
+                self._cors()
+                self.end_headers()
+                self.wfile.write(body)
+            except FileNotFoundError:
+                self._text(404, "favicon.ico not found")
         else:
             self._text(404, "Not found")
 
@@ -87,6 +99,19 @@ class Handler(BaseHTTPRequestHandler):
                     body = f.read()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self._cors()
+                self.end_headers()
+            except FileNotFoundError:
+                self.send_response(404)
+                self._cors()
+                self.end_headers()
+        elif path == "/favicon.ico":
+            try:
+                with open("favicon.ico", "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/x-icon")
                 self.send_header("Content-Length", str(len(body)))
                 self._cors()
                 self.end_headers()

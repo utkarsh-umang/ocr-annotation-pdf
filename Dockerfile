@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY server.py index.html ./
+COPY server.py index.html favicon.ico ./
 
 ENV PORT=8080
 EXPOSE 8080

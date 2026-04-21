@@ -78,6 +78,27 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._text(404, "Not found")
 
+    # Some probes/clients use HEAD for liveness checks.
+    def do_HEAD(self):
+        path = self.path.split("?")[0]
+        if path in ("/", "/index.html"):
+            try:
+                with open("index.html", "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self._cors()
+                self.end_headers()
+            except FileNotFoundError:
+                self.send_response(404)
+                self._cors()
+                self.end_headers()
+        else:
+            self.send_response(404)
+            self._cors()
+            self.end_headers()
+
     # Proxy OCR call
     def do_POST(self):
         if self.path != "/api/ocr":

@@ -1,0 +1,908 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docstrange.nanonets.com/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# API Examples
+
+> Complete code examples for the Document Extraction API
+
+## Synchronous Extraction Examples
+
+### Basic Markdown Extraction
+
+<CodeGroup>
+  ```bash cURL theme={null}
+  curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/sync" \
+    -H "Authorization: Bearer YOUR_API_KEY" \
+    -F "file=@/path/to/document.pdf" \
+    -F "output_format=markdown"
+  ```
+
+  ```python Python theme={null}
+  import requests
+
+  response = requests.post(
+      "https://extraction-api.nanonets.com/api/v1/extract/sync",
+      headers={"Authorization": "Bearer YOUR_API_KEY"},
+      files={"file": open("document.pdf", "rb")},
+      data={"output_format": "markdown"}
+  )
+  print(response.json()["result"]["markdown"]["content"])
+  ```
+
+  ```javascript JavaScript theme={null}
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+  formData.append("output_format", "markdown");
+
+  const response = await fetch("https://extraction-api.nanonets.com/api/v1/extract/sync", {
+    method: "POST",
+    headers: { "Authorization": "Bearer YOUR_API_KEY" },
+    body: formData
+  });
+  const result = await response.json();
+  console.log(result.result.markdown.content);
+  ```
+</CodeGroup>
+
+<Accordion title="Response">
+  ```json theme={null}
+  {
+    "success": true,
+    "message": "Extraction completed successfully",
+    "record_id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "completed",
+    "result": {
+      "markdown": {
+        "content": "# Invoice\n\n**Invoice Number:** INV-2024-001\n**Date:** 2024-01-15\n\n| Item | Quantity | Price |\n|------|----------|-------|\n| Widget A | 10 | $50.00 |",
+        "metadata": {}
+      }
+    },
+    "processing_time": 1.23
+  }
+  ```
+</Accordion>
+
+***
+
+### Markdown for Financial Documents
+
+Optimized extraction for financial documents with enhanced table and number formatting:
+
+```bash theme={null}
+curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/sync" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@/path/to/financial-report.pdf" \
+  -F "output_format=markdown" \
+  -F "markdown_options=financial-docs"
+```
+
+***
+
+### Markdown with Bounding Boxes
+
+Extract markdown content with coordinate data for each element:
+
+```bash theme={null}
+curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/sync" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@/path/to/document.pdf" \
+  -F "output_format=markdown" \
+  -F "include_metadata=bounding_boxes"
+```
+
+<Accordion title="Response with bounding boxes">
+  ```json theme={null}
+  {
+    "success": true,
+    "message": "Extraction completed successfully",
+    "record_id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "completed",
+    "result": {
+      "markdown": {
+        "content": "# Invoice\n\n**Invoice Number:** INV-2024-001...",
+        "metadata": {
+          "bounding_boxes": {
+            "success": true,
+            "elements": [
+              {
+                "content": "## Page 1",
+                "bounding_box": {
+                  "x": 0.117,
+                  "y": 0.072,
+                  "width": 0.002,
+                  "height": 0.002,
+                  "text": "1",
+                  "confidence": 0.98,
+                  "page": 1,
+                  "normalized": true,
+                  "image_dimensions": {
+                    "width": 2550,
+                    "height": 4200
+                  }
+                }
+              }
+            ],
+            "page_dimensions": {
+              "pages": [{"page": 1, "width": 2550, "height": 4200}],
+              "total_pages": 4
+            },
+            "coordinates_normalized": true
+          }
+        }
+      }
+    },
+    "processing_time": 1.23
+  }
+  ```
+</Accordion>
+
+***
+
+### JSON Extraction with Field List
+
+Extract specific fields as structured JSON:
+
+```bash theme={null}
+curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/sync" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file_url=https://example.com/invoice.pdf" \
+  -F "output_format=json" \
+  -F 'json_options=["invoice_number", "date", "total_amount", "vendor"]'
+```
+
+<Accordion title="Response">
+  ```json theme={null}
+  {
+    "success": true,
+    "message": "Extraction completed successfully",
+    "record_id": "550e8400-e29b-41d4-a716-446655440001",
+    "status": "completed",
+    "result": {
+      "json": {
+        "content": {
+          "invoice_number": "INV-2024-001",
+          "date": "2024-01-15",
+          "vendor": "Acme Corp",
+          "total_amount": 500.00
+        },
+        "metadata": {}
+      }
+    },
+    "processing_time": 2.45
+  }
+  ```
+</Accordion>
+
+***
+
+### JSON Hierarchy Output
+
+Extract document content as tree-structured nested JSON:
+
+```bash theme={null}
+curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/sync" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@/path/to/document.pdf" \
+  -F "output_format=json" \
+  -F "json_options=hierarchy_output"
+```
+
+<Accordion title="Response">
+  ```json theme={null}
+  {
+    "success": true,
+    "message": "Extraction completed successfully",
+    "record_id": "550e8400-e29b-41d4-a716-446655440002",
+    "status": "completed",
+    "result": {
+      "json": {
+        "content": {
+          "title": "Annual Report 2024",
+          "sections": [
+            {
+              "heading": "Executive Summary",
+              "content": "...",
+              "subsections": []
+            }
+          ]
+        },
+        "metadata": {}
+      }
+    },
+    "processing_time": 2.15
+  }
+  ```
+</Accordion>
+
+***
+
+### CSV Table Extraction
+
+Extract structured table data from documents:
+
+```bash theme={null}
+curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/sync" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@/path/to/spreadsheet.pdf" \
+  -F "output_format=csv" \
+  -F "csv_options=table"
+```
+
+***
+
+### JSON with Confidence Scores
+
+Include confidence scores for each extracted field (only available with schema or field list):
+
+```bash theme={null}
+curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/sync" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file_url=https://example.com/invoice.pdf" \
+  -F "output_format=json" \
+  -F 'json_options=["invoice_number", "date", "total_amount", "vendor"]' \
+  -F "include_metadata=confidence_score"
+```
+
+<Accordion title="Response with confidence scores">
+  ```json theme={null}
+  {
+    "success": true,
+    "message": "Extraction completed successfully",
+    "record_id": "550e8400-e29b-41d4-a716-446655440001",
+    "status": "completed",
+    "result": {
+      "json": {
+        "content": {
+          "invoice_number": "INV-2024-001",
+          "date": "2024-01-15",
+          "vendor": "Acme Corp",
+          "total_amount": 500.00
+        },
+        "metadata": {
+          "confidence_score": {
+            "invoice_number": 98,
+            "date": 95,
+            "total_amount": 99,
+            "vendor": 96
+          }
+        }
+      }
+    },
+    "processing_time": 2.45
+  }
+  ```
+</Accordion>
+
+***
+
+### JSON with Custom Schema
+
+Define exact output structure using JSON schema:
+
+```bash theme={null}
+curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/sync" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file_url=https://example.com/receipt.pdf" \
+  -F "output_format=json" \
+  -F 'json_options={"type": "object", "properties": {"invoice_number": {"type": "string", "description": "Number given to invoice"}, "total_amount": {"type": "number"}}}'
+```
+
+<Accordion title="Response">
+  ```json theme={null}
+  {
+    "success": true,
+    "message": "Extraction completed successfully",
+    "record_id": "550e8400-e29b-41d4-a716-446655440001",
+    "status": "completed",
+    "result": {
+      "json": {
+        "content": {
+          "invoice_number": "INV-2024-001",
+          "total_amount": 500.00
+        },
+        "metadata": {}
+      }
+    },
+    "processing_time": 2.45
+  }
+  ```
+</Accordion>
+
+***
+
+### Hierarchy Extraction
+
+Extract document structure with sections, tables, and key-value pairs:
+
+```bash theme={null}
+curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/sync" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file_url=https://example.com/document.pdf" \
+  -F "output_format=json" \
+  -F "json_options=hierarchy_output"
+```
+
+<Accordion title="Response with hierarchy">
+  ```json theme={null}
+  {
+    "success": true,
+    "message": "Extraction completed successfully",
+    "record_id": "550e8400-e29b-41d4-a716-446655440001",
+    "status": "completed",
+    "result": {
+      "json": {
+        "content": {
+          "document": {
+            "title": "Invoice Document",
+            "type": "document",
+            "metadata": {
+              "date": "",
+              "author": "",
+              "pages": "1"
+            },
+            "sections": [
+              {
+                "id": "page_1_section_1",
+                "title": "Company Information",
+                "level": 1,
+                "content": "ACME CORPORATION\n123 Business Street\nCity, State 12345",
+                "subsections": []
+              }
+            ],
+            "tables": [
+              {
+                "id": "page_1_table_1",
+                "title": "Invoice Items",
+                "headers": ["Item", "Quantity", "Price", "Amount"],
+                "rows": [
+                  ["Widget A", "10", "$50.00", "$500.00"]
+                ]
+              }
+            ],
+            "key_value_pairs": [
+              {"key": "Invoice Number", "value": "INV-2024-001"},
+              {"key": "Date", "value": "2024-01-15"}
+            ]
+          }
+        },
+        "metadata": {}
+      }
+    },
+    "processing_time": 2.45
+  }
+  ```
+</Accordion>
+
+***
+
+### Multiple Output Formats
+
+Request multiple formats in a single call:
+
+```bash theme={null}
+curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/sync" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@/path/to/document.pdf" \
+  -F "output_format=markdown,json" \
+  -F "custom_instructions=Focus on extracting financial data. Ignore headers and footers." \
+  -F "prompt_mode=append"
+```
+
+<Accordion title="Response with multiple formats">
+  ```json theme={null}
+  {
+    "success": true,
+    "message": "Extraction completed successfully",
+    "record_id": "550e8400-e29b-41d4-a716-446655440002",
+    "status": "completed",
+    "result": {
+      "markdown": {
+        "content": "## Financial Data\n\n**Total Amount:** $500.00",
+        "metadata": {}
+      },
+      "json": {
+        "content": {
+          "total_amount": 500.00,
+          "currency": "USD"
+        },
+        "metadata": {}
+      }
+    },
+    "processing_time": 3.12
+  }
+  ```
+</Accordion>
+
+***
+
+### Base64 Encoded File
+
+Send file content as base64:
+
+```bash theme={null}
+curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/sync" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file_base64=$(base64 -i /path/to/document.pdf)" \
+  -F "output_format=json"
+```
+
+***
+
+## Asynchronous Extraction
+
+Use the async workflow for large documents (>5 pages). The process has three steps: queue, poll, and retrieve.
+
+<Steps>
+  <Step title="Queue the document">
+    ```bash theme={null}
+    curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/async" \
+      -H "Authorization: Bearer YOUR_API_KEY" \
+      -F "file=@/path/to/large-document.pdf" \
+      -F "output_format=markdown"
+    ```
+
+    <Accordion title="Response">
+      ```json theme={null}
+      {
+        "success": true,
+        "message": "Extraction job queued for processing. Use the record_id to check status.",
+        "record_id": "12345",
+        "status": "processing",
+        "result": null,
+        "filename": "large-document.pdf"
+      }
+      ```
+    </Accordion>
+  </Step>
+
+  <Step title="Poll for status">
+    ```bash theme={null}
+    curl -X GET "https://extraction-api.nanonets.com/api/v1/extract/results/12345" \
+      -H "Authorization: Bearer YOUR_API_KEY"
+    ```
+
+    While processing, you'll see `"status": "processing"`. Keep polling until it changes to `"completed"`.
+  </Step>
+
+  <Step title="Get the completed result">
+    Once the status is `"completed"`, the same endpoint returns the full content:
+
+    <Accordion title="Completed response">
+      ```json theme={null}
+      {
+        "success": true,
+        "message": "Extraction completed successfully",
+        "record_id": "12345",
+        "status": "completed",
+        "result": {
+          "markdown": {
+            "content": "# Document Title\n\nExtracted content...",
+            "metadata": {}
+          }
+        },
+        "processing_time": 15.5,
+        "pages_processed": 100
+      }
+      ```
+    </Accordion>
+  </Step>
+</Steps>
+
+***
+
+## Streaming Extraction Examples
+
+The streaming endpoint provides real-time extraction results via Server-Sent Events (SSE), allowing you to display content as it's being generated.
+
+### Basic Streaming Extraction
+
+<CodeGroup>
+  ```bash cURL theme={null}
+  curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/stream" \
+    -H "Authorization: Bearer YOUR_API_KEY" \
+    -H "Accept: text/event-stream" \
+    -F "file=@/path/to/document.pdf" \
+    -F "output_format=markdown" \
+    -F "enable_streaming=true"
+  ```
+
+  ```python Python theme={null}
+  import requests
+  import json
+
+  def stream_extraction(file_path, output_format="markdown"):
+      """Stream extraction results in real-time."""
+      with open(file_path, "rb") as f:
+          response = requests.post(
+              "https://extraction-api.nanonets.com/api/v1/extract/stream",
+              headers={"Authorization": "Bearer YOUR_API_KEY"},
+              files={"file": f},
+              data={
+                  "output_format": output_format,
+                  "enable_streaming": "true"
+              },
+              stream=True
+          )
+      
+      for line in response.iter_lines():
+          if line:
+              line = line.decode('utf-8')
+              if line.startswith('data: '):
+                  event = json.loads(line[6:])
+                  
+                  if event['type'] == 'content':
+                      print(event['data'], end='', flush=True)
+                  elif event['type'] == 'done':
+                      print(f"\n\nCompleted in {event['processing_time']:.2f}s")
+                      print(f"Record ID: {event['record_id']}")
+                  elif event['type'] == 'error':
+                      print(f"Error: {event['error']}")
+
+  stream_extraction("document.pdf")
+  ```
+
+  ```javascript JavaScript theme={null}
+  async function streamExtraction(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("output_format", "markdown");
+    formData.append("enable_streaming", "true");
+
+    const response = await fetch("https://extraction-api.nanonets.com/api/v1/extract/stream", {
+      method: "POST",
+      headers: { "Authorization": "Bearer YOUR_API_KEY" },
+      body: formData
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const event = JSON.parse(line.slice(6));
+          
+          if (event.type === 'content') {
+            document.getElementById('output').textContent += event.data;
+          } else if (event.type === 'done') {
+            console.log(`Completed in ${event.processing_time}s`);
+          } else if (event.type === 'error') {
+            console.error(`Error: ${event.error}`);
+          }
+        }
+      }
+    }
+  }
+
+  document.getElementById('fileInput').addEventListener('change', (e) => {
+    streamExtraction(e.target.files[0]);
+  });
+  ```
+</CodeGroup>
+
+**SSE Response Events:**
+
+```
+data: {"type": "content", "data": "# Invoice\n\n"}
+
+data: {"type": "content", "data": "**Invoice Number:** INV-2024-001\n"}
+
+data: {"type": "content", "data": "**Date:** 2024-01-15\n\n"}
+
+data: {"type": "content", "data": "| Item | Quantity | Price |\n"}
+
+data: {"type": "done", "record_id": "12345", "processing_time": 2.5}
+```
+
+***
+
+### Streaming with JSON Output
+
+```bash theme={null}
+curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/stream" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@/path/to/invoice.pdf" \
+  -F "output_format=json" \
+  -F 'json_options=["invoice_number", "date", "total_amount"]' \
+  -F "enable_streaming=true"
+```
+
+***
+
+### Batch Mode (Streaming Disabled)
+
+When streaming is disabled, the endpoint returns the complete result at once via SSE:
+
+```bash theme={null}
+curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/stream" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@/path/to/document.pdf" \
+  -F "output_format=markdown" \
+  -F "enable_streaming=false"
+```
+
+```
+data: {"type": "complete", "data": "# Full Document Content\n\nAll extracted content..."}
+
+data: {"type": "done", "record_id": "12345", "processing_time": 3.2}
+```
+
+***
+
+### React Integration Example
+
+<Accordion title="Full React component">
+  ```jsx theme={null}
+  import { useState, useCallback } from 'react';
+
+  function StreamingExtractor() {
+    const [content, setContent] = useState('');
+    const [isStreaming, setIsStreaming] = useState(false);
+    const [recordId, setRecordId] = useState(null);
+
+    const handleFileUpload = useCallback(async (file) => {
+      setContent('');
+      setIsStreaming(true);
+      setRecordId(null);
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('output_format', 'markdown');
+      formData.append('enable_streaming', 'true');
+
+      try {
+        const response = await fetch('/api/v1/extract/stream', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${apiKey}` },
+          body: formData,
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const event = JSON.parse(line.slice(6));
+              switch (event.type) {
+                case 'content':
+                  setContent(prev => prev + event.data);
+                  break;
+                case 'done':
+                  setRecordId(event.record_id);
+                  setIsStreaming(false);
+                  break;
+                case 'error':
+                  console.error(event.error);
+                  setIsStreaming(false);
+                  break;
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Streaming failed:', error);
+        setIsStreaming(false);
+      }
+    }, []);
+
+    return (
+      <div>
+        <input
+          type="file"
+          onChange={(e) => e.target.files[0] && handleFileUpload(e.target.files[0])}
+          disabled={isStreaming}
+        />
+        {isStreaming && <div>Extracting...</div>}
+        <pre>{content}</pre>
+        {recordId && <div>Record ID: {recordId}</div>}
+      </div>
+    );
+  }
+  ```
+</Accordion>
+
+***
+
+### Large File Handling
+
+For files exceeding the page threshold, the streaming endpoint automatically queues them for async processing:
+
+```
+data: {"type": "async_queued", "record_id": "12345", "total_pages": 150, "message": "File has 150 pages and has been queued for async processing"}
+```
+
+You can then poll for results using the `/results/{record_id}` endpoint.
+
+***
+
+## Batch Processing Examples
+
+### Process Multiple Invoices
+
+```bash theme={null}
+curl -X POST "https://extraction-api.nanonets.com/api/v1/extract/batch" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "files=@invoice1.pdf" \
+  -F "files=@invoice2.pdf" \
+  -F "files=@invoice3.pdf" \
+  -F "output_format=json" \
+  -F 'json_options=["invoice_number", "date", "total_amount"]'
+```
+
+<Accordion title="Batch response">
+  ```json theme={null}
+  {
+    "success": true,
+    "message": "Batch abc-123-def-456: 3 files queued, 0 failed",
+    "batch_id": "abc-123-def-456",
+    "total_files": 3,
+    "accepted_files": 3,
+    "rejected_files": 0,
+    "records": [
+      {
+        "success": true,
+        "message": "Queued for processing",
+        "record_id": "12345",
+        "status": "processing",
+        "filename": "invoice1.pdf"
+      },
+      {
+        "success": true,
+        "message": "Queued for processing",
+        "record_id": "12346",
+        "status": "processing",
+        "filename": "invoice2.pdf"
+      },
+      {
+        "success": true,
+        "message": "Queued for processing",
+        "record_id": "12347",
+        "status": "processing",
+        "filename": "invoice3.pdf"
+      }
+    ]
+  }
+  ```
+</Accordion>
+
+***
+
+## List & Pagination Examples
+
+### List Recent Extractions
+
+```bash theme={null}
+curl -X GET "https://extraction-api.nanonets.com/api/v1/extract/results?page=1&page_size=10&sort_order=desc" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+<Accordion title="Response with pagination">
+  ```json theme={null}
+  {
+    "success": true,
+    "results": [
+      {
+        "success": true,
+        "message": "Status: completed",
+        "record_id": "12345",
+        "status": "completed",
+        "result": null,
+        "processing_time": 2.5,
+        "filename": "invoice.pdf",
+        "output_format": "markdown",
+        "file_size": 102400,
+        "pages_processed": 2,
+        "created_at": "2024-01-15T10:30:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "page_size": 10,
+      "total_count": 45,
+      "total_pages": 5,
+      "has_next": true,
+      "has_previous": false
+    }
+  }
+  ```
+</Accordion>
+
+***
+
+## Python SDK Example
+
+Complete Python example with error handling and async polling:
+
+<Accordion title="Full Python SDK example">
+  ```python theme={null}
+  import requests
+  import time
+
+  API_KEY = "YOUR_API_KEY"
+  BASE_URL = "https://extraction-api.nanonets.com/api/v1"
+
+  def extract_document(file_path, output_format="markdown", json_options=None):
+      """Extract content from a document."""
+      headers = {"Authorization": f"Bearer {API_KEY}"}
+      
+      with open(file_path, "rb") as f:
+          files = {"file": f}
+          data = {"output_format": output_format}
+          
+          if json_options:
+              data["json_options"] = json_options
+          
+          response = requests.post(
+              f"{BASE_URL}/extract/sync",
+              headers=headers,
+              files=files,
+              data=data
+          )
+      
+      response.raise_for_status()
+      return response.json()
+
+  def extract_async(file_path, output_format="markdown"):
+      """Queue document for async processing."""
+      headers = {"Authorization": f"Bearer {API_KEY}"}
+      
+      with open(file_path, "rb") as f:
+          response = requests.post(
+              f"{BASE_URL}/extract/async",
+              headers=headers,
+              files={"file": f},
+              data={"output_format": output_format}
+          )
+      
+      response.raise_for_status()
+      return response.json()["record_id"]
+
+  def poll_result(record_id, max_wait=300, interval=5):
+      """Poll for async extraction result."""
+      headers = {"Authorization": f"Bearer {API_KEY}"}
+      start = time.time()
+      
+      while time.time() - start < max_wait:
+          response = requests.get(
+              f"{BASE_URL}/extract/results/{record_id}",
+              headers=headers
+          )
+          result = response.json()
+          
+          if result["status"] == "completed":
+              return result
+          elif result["status"] == "failed":
+              raise Exception(f"Extraction failed: {result['message']}")
+          
+          time.sleep(interval)
+      
+      raise TimeoutError("Extraction timed out")
+
+  # Sync usage
+  result = extract_document("invoice.pdf", "json", '["invoice_number", "total"]')
+  print(result["result"]["json"]["content"])
+
+  # Async usage
+  record_id = extract_async("large-document.pdf")
+  result = poll_result(record_id)
+  print(result["result"]["markdown"]["content"])
+  ```
+</Accordion>

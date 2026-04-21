@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OCR Engine</title>
+  <link rel="icon" href="./favicon.ico">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent:       #4f46e5;
+      --accent-light: rgba(79, 70, 229, 0.10);
+      --sidebar-bg:   #111827;
+      --sidebar-text: #9ca3af;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      color: #111827;
+    }
+
+    /* ── Upload Screen ───────────────────────────────────────────────────── */
+    #upload-screen {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #f9fafb;
+      gap: 12px;
+    }
+
+    #upload-screen h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    #upload-screen .subtitle {
+      font-size: 15px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+
+    #drop-zone {
+      width: 440px;
+      height: 260px;
+      border: 2px dashed #d1d5db;
+      border-radius: 16px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    #drop-zone:hover .upload-icon, #drop-zone.drag-over .upload-icon {
+      color: var(--accent);
+    }
+
+    .upload-icon { color: #9ca3af; transition: color 0.2s; }
+
+    #drop-zone .drop-label {
+      font-size: 15px;
+      font-weight: 500;
+      color: #374151;
+    }
+
+    #drop-zone .drop-sub {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    #browse-btn {
+      padding: 8px 22px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #browse-btn:hover { background: #4338ca; }
+
+    #file-input { display: none; }
+
+    /* ── Viewer Screen ───────────────────────────────────────────────────── */
+    #viewer-screen {
+      display: none;
+      height: 100vh;
+    }
+
+    #viewer-screen.active { display: flex; }
+
+    /* Sidebar */
+    #sidebar {
+      width: 180px;
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    #sidebar-header {
+      padding: 14px 12px;
+      border-bottom: 1px solid #1f2937;
+    }
+
+    .app-name {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #f9fafb;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    #page-count-label {
+      font-size: 12px;
+      color: var(--sidebar-text);
+    }
+
+    #thumbnails {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    #thumbnails::-webkit-scrollbar { width: 3px; }
+    #thumbnails::-webkit-scrollbar-thumb { background: #374151; border-radius: 2px; }
+
+    .thumb-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .thumb-item:hover { background: #1f2937; }
+
+    .thumb-item.active {
+      border-color: var(--accent);
+      background: rgba(79, 70, 229, 0.15);
+    }
+
+    .thumb-item canvas {
+      display: block;
+      max-width: 140px;
+      border-radius: 3px;
+      background: #fff;
+    }
+
+    .thumb-label {
+      font-size: 11px;
+      color: var(--sidebar-text);
+    }
+
+    #sidebar-footer {
+      padding: 10px;
+      border-top: 1px solid #1f2937;
+    }
+
+    #upload-new-btn {
+      width: 100%;
+      padding: 8px 0;
+      background: #1f2937;
+      color: #d1d5db;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #upload-new-btn:hover { background: #374151; }
+
+    /* Main */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    /* Toolbar */
+    #toolbar {
+      height: 52px;
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 0;
+      flex-shrink: 0;
+    }
+
+    #filename-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #374151;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 12px;
+    }
+
+    .divider {
+      width: 1px;
+      height: 22px;
+      background: #e5e7eb;
+      margin: 0 12px;
+    }
+
+    .icon-btn {
+      width: 28px;
+      height: 28px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 17px;
+      color: #374151;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .icon-btn:hover:not(:disabled) { background: #f3f4f6; }
+
+    .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .ctrl-group { display: flex; align-items: center; gap: 6px; }
+
+    #page-info, #zoom-label {
+      font-size: 13px;
+      color: #6b7280;
+      min-width: 52px;
+      text-align: center;
+    }
+
+    .spacer { flex: 1; }
+
+    #run-ocr-btn {
+      padding: 7px 18px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: background 0.2s;
+    }
+
+    #run-ocr-btn:hover:not(:disabled) { background: #4338ca; }
+    #run-ocr-btn:disabled { background: #a5b4fc; cursor: not-allowed; }
+
+    .spinner {
+      width: 13px;
+      height: 13px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      display: none;
+    }
+
+    #run-ocr-btn.loading .spinner   { display: block; }
+    #run-ocr-btn.loading .btn-label { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Canvas area */
+    #canvas-area {
+      flex: 1;
+      overflow: auto;
+      background: #d1d5db;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 32px;
+    }
+
+    #canvas-wrapper {
+      position: relative;
+      flex-shrink: 0;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+    }
+
+    #pdf-canvas { display: block; }
+
+    #overlay-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      cursor: crosshair;
+    }
+
+    #page-loading {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.82);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      z-index: 5;
+    }
+
+    #page-loading.active { display: flex; }
+
+    .big-spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #e5e7eb;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .loading-label { font-size: 14px; color: #6b7280; }
+
+    /* Tooltip */
+    #tooltip {
+      position: fixed;
+      background: #111827;
+      color: #f9fafb;
+      font-size: 12px;
+      line-height: 1.5;
+      padding: 5px 10px;
+      border-radius: 6px;
+      pointer-events: none;
+      z-index: 9999;
+      max-width: 300px;
+      display: none;
+    }
+
+    /* Right Panel */
+    #right-panel {
+      width: 272px;
+      background: #fff;
+      border-left: 1px solid #e5e7eb;
+      display: none;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    #right-panel.active { display: flex; }
+
+    #rp-header {
+      padding: 13px 16px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #rp-header h2 { font-size: 14px; font-weight: 600; }
+
+    #block-count {
+      font-size: 12px;
+      color: #6b7280;
+      background: #f3f4f6;
+      padding: 2px 8px;
+      border-radius: 99px;
+    }
+
+    #blocks-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    #blocks-list::-webkit-scrollbar { width: 3px; }
+    #blocks-list::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+
+    .block-item {
+      padding: 9px 11px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .block-item:hover { border-color: var(--accent); background: var(--accent-light); }
+
+    .block-item.highlighted {
+      border-color: #059669;
+      background: rgba(5, 150, 105, 0.08);
+    }
+
+    .block-text {
+      font-size: 13px;
+      font-weight: 500;
+      color: #111827;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-bottom: 3px;
+    }
+
+    .block-coords {
+      font-size: 11px;
+      color: #9ca3af;
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    }
+
+    .empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 24px;
+      text-align: center;
+      font-size: 13px;
+      color: #9ca3af;
+      line-height: 1.6;
+    }
+
+    #rp-footer {
+      padding: 12px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    #export-btn {
+      width: 100%;
+      padding: 8px 0;
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #export-btn:hover { background: #e5e7eb; }
+  </style>
+</head>
+<body>
+
+<!-- ── Upload Screen ──────────────────────────────────────────────────────── -->
+<div id="upload-screen">
+  <h1>OCR Engine</h1>
+  <p class="subtitle">Upload a PDF to extract and visualize text with bounding boxes</p>
+
+  <div id="drop-zone">
+    <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 18a4.6 4.4 0 0 1 0-9h0a5 4.5 0 0 1 11 2h1a3.5 3.5 0 0 1 0 7h-1"/>
+      <polyline points="9 15 12 12 15 15"/>
+      <line x1="12" y1="12" x2="12" y2="21"/>
+    </svg>
+    <span class="drop-label">Drag &amp; drop your PDF here</span>
+    <span class="drop-sub">or</span>
+    <button id="browse-btn">Browse file</button>
+  </div>
+
+  <input type="file" id="file-input" accept="application/pdf">
+</div>
+
+<!-- ── Viewer Screen ──────────────────────────────────────────────────────── -->
+<div id="viewer-screen">
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <span class="app-name">OCR Engine</span>
+      <span id="page-count-label">—</span>
+    </div>
+    <div id="thumbnails"></div>
+    <div id="sidebar-footer">
+      <button id="upload-new-btn">↑ Upload new PDF</button>
+    </div>
+  </aside>
+
+  <!-- Main viewer -->
+  <div id="main">
+    <div id="toolbar">
+      <span id="filename-label"></span>
+      <div class="divider"></div>
+
+      <div class="ctrl-group">
+        <button class="icon-btn" id="prev-btn" title="Previous page (←)">&#8249;</button>
+        <span id="page-info">— / —</span>
+        <button class="icon-btn" id="next-btn" title="Next page (→)">&#8250;</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="ctrl-group">
+        <button class="icon-btn" id="zoom-out-btn" title="Zoom out">−</button>
+        <span id="zoom-label">150%</span>
+        <button class="icon-btn" id="zoom-in-btn" title="Zoom in">+</button>
+      </div>
+
+      <div class="spacer"></div>
+
+      <button id="run-ocr-btn">
+        <div class="spinner"></div>
+        <span class="btn-label">Run OCR</span>
+      </button>
+    </div>
+
+    <div id="canvas-area">
+      <div id="canvas-wrapper">
+        <canvas id="pdf-canvas"></canvas>
+        <canvas id="overlay-canvas"></canvas>
+        <div id="page-loading">
+          <div class="big-spinner"></div>
+          <span class="loading-label" id="loading-label">Processing document…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right panel -->
+  <aside id="right-panel">
+    <div id="rp-header">
+      <h2>Text Blocks</h2>
+      <span id="block-count">0</span>
+    </div>
+    <div id="blocks-list">
+      <div class="empty-state">Run OCR to see extracted text blocks here</div>
+    </div>
+    <div id="rp-footer">
+      <button id="export-btn">⬇ Export as JSON</button>
+    </div>
+  </aside>
+</div>
+
+<div id="tooltip"></div>
+
+<!-- PDF.js from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let pdfDoc          = null;
+  let currentFile     = null;   // raw File object kept for the API call
+  let currentPage     = 1;
+  let currentScale    = 1.5;
+  let ocrResults      = {};   // { pageNum: [{ text, x, y, w, h }] }  — coords normalized [0,1]
+  let highlightedIdx  = -1;
+  let currentFilename = '';
+
+  const ZOOM_STEPS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0];
+
+  // ── DOM refs ──────────────────────────────────────────────────────────────
+  const uploadScreen  = document.getElementById('upload-screen');
+  const viewerScreen  = document.getElementById('viewer-screen');
+  const dropZone      = document.getElementById('drop-zone');
+  const fileInput     = document.getElementById('file-input');
+  const filenameLabel = document.getElementById('filename-label');
+  const pgCountLabel  = document.getElementById('page-count-label');
+  const thumbnailsEl  = document.getElementById('thumbnails');
+  const pdfCanvas     = document.getElementById('pdf-canvas');
+  const overlayCanvas = document.getElementById('overlay-canvas');
+  const canvasWrapper = document.getElementById('canvas-wrapper');
+  const pageLoading   = document.getElementById('page-loading');
+  const pageInfo      = document.getElementById('page-info');
+  const zoomLabel     = document.getElementById('zoom-label');
+  const prevBtn       = document.getElementById('prev-btn');
+  const nextBtn       = document.getElementById('next-btn');
+  const zoomInBtn     = document.getElementById('zoom-in-btn');
+  const zoomOutBtn    = document.getElementById('zoom-out-btn');
+  const runOcrBtn     = document.getElementById('run-ocr-btn');
+  const rightPanel    = document.getElementById('right-panel');
+  const blocksList    = document.getElementById('blocks-list');
+  const blockCount    = document.getElementById('block-count');
+  const exportBtn     = document.getElementById('export-btn');
+  const tooltip       = document.getElementById('tooltip');
+  const uploadNewBtn  = document.getElementById('upload-new-btn');
+
+  const pdfCtx     = pdfCanvas.getContext('2d');
+  const overlayCtx = overlayCanvas.getContext('2d');
+
+  // ── Upload ────────────────────────────────────────────────────────────────
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  document.getElementById('browse-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    fileInput.click();
+  });
+
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+
+  dropZone.addEventListener('dragleave', e => {
+    if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over');
+  });
+
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type === 'application/pdf') openPDF(file);
+    else if (file) alert('Please drop a PDF file.');
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) openPDF(fileInput.files[0]);
+  });
+
+  uploadNewBtn.addEventListener('click', () => {
+    resetState();
+    viewerScreen.classList.remove('active');
+    uploadScreen.style.display = 'flex';
+    fileInput.value = '';
+  });
+
+  // ── Load PDF ──────────────────────────────────────────────────────────────
+  async function openPDF(file) {
+    currentFile     = file;
+    currentFilename = file.name;
+    filenameLabel.textContent = file.name;
+
+    uploadScreen.style.display = 'none';
+    viewerScreen.classList.add('active');
+
+    const buf = await file.arrayBuffer();
+    pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+
+    pgCountLabel.textContent = `${pdfDoc.numPages} page${pdfDoc.numPages > 1 ? 's' : ''}`;
+
+    buildThumbnails();      // fire-and-forget; each thumb renders async
+    await renderPage(1);
+  }
+
+  function resetState() {
+    pdfDoc = null;
+    currentFile = null;
+    currentPage = 1;
+    ocrResults = {};
+    highlightedIdx = -1;
+    thumbnailsEl.innerHTML = '';
+    rightPanel.classList.remove('active');
+    blocksList.innerHTML = '<div class="empty-state">Run OCR to see extracted text blocks here</div>';
+    blockCount.textContent = '0';
+  }
+
+  // ── Thumbnails ────────────────────────────────────────────────────────────
+  function buildThumbnails() {
+    thumbnailsEl.innerHTML = '';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      const item = document.createElement('div');
+      item.className = 'thumb-item' + (i === 1 ? ' active' : '');
+      item.dataset.page = i;
+      item.addEventListener('click', () => renderPage(parseInt(item.dataset.page)));
+
+      const c = document.createElement('canvas');
+      item.appendChild(c);
+
+      const lbl = document.createElement('span');
+      lbl.className = 'thumb-label';
+      lbl.textContent = `Page ${i}`;
+      item.appendChild(lbl);
+
+      thumbnailsEl.appendChild(item);
+      renderThumbnail(i, c);
+    }
+  }
+
+  async function renderThumbnail(pageNum, canvas) {
+    const page     = await pdfDoc.getPage(pageNum);
+    const viewport = page.getViewport({ scale: 0.18 });
+    canvas.width   = viewport.width;
+    canvas.height  = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+  }
+
+  // ── Page Rendering ────────────────────────────────────────────────────────
+  async function renderPage(pageNum) {
+    if (!pdfDoc || pageNum < 1 || pageNum > pdfDoc.numPages) return;
+    currentPage = pageNum;
+
+    // Sidebar active state
+    document.querySelectorAll('.thumb-item').forEach(el => {
+      const active = parseInt(el.dataset.page) === pageNum;
+      el.classList.toggle('active', active);
+      if (active) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+
+    pageInfo.textContent  = `${pageNum} / ${pdfDoc.numPages}`;
+    prevBtn.disabled      = pageNum <= 1;
+    nextBtn.disabled      = pageNum >= pdfDoc.numPages;
+
+    const page     = await pdfDoc.getPage(pageNum);
+    const viewport = page.getViewport({ scale: currentScale });
+
+    pdfCanvas.width     = viewport.width;
+    pdfCanvas.height    = viewport.height;
+    overlayCanvas.width = viewport.width;
+    overlayCanvas.height= viewport.height;
+    canvasWrapper.style.width  = viewport.width  + 'px';
+    canvasWrapper.style.height = viewport.height + 'px';
+
+    await page.render({ canvasContext: pdfCtx, viewport }).promise;
+
+    highlightedIdx = -1;
+    drawBoxes(pageNum);
+    updateRightPanel(pageNum);
+  }
+
+  // ── Navigation ────────────────────────────────────────────────────────────
+  prevBtn.addEventListener('click', () => renderPage(currentPage - 1));
+  nextBtn.addEventListener('click', () => renderPage(currentPage + 1));
+
+  document.addEventListener('keydown', e => {
+    if (!pdfDoc || e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') renderPage(currentPage + 1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   renderPage(currentPage - 1);
+  });
+
+  // ── Zoom ──────────────────────────────────────────────────────────────────
+  function applyZoom(scale) {
+    currentScale = scale;
+    zoomLabel.textContent  = Math.round(scale * 100) + '%';
+    zoomOutBtn.disabled    = scale <= ZOOM_STEPS[0];
+    zoomInBtn.disabled     = scale >= ZOOM_STEPS[ZOOM_STEPS.length - 1];
+    if (pdfDoc) renderPage(currentPage);
+  }
+
+  zoomInBtn.addEventListener('click', () => {
+    const i = ZOOM_STEPS.indexOf(currentScale);
+    if (i < ZOOM_STEPS.length - 1) applyZoom(ZOOM_STEPS[i + 1]);
+  });
+
+  zoomOutBtn.addEventListener('click', () => {
+    const i = ZOOM_STEPS.indexOf(currentScale);
+    if (i > 0) applyZoom(ZOOM_STEPS[i - 1]);
+  });
+
+  applyZoom(1.5); // set initial label + disabled state
+
+  // ── OCR ───────────────────────────────────────────────────────────────────
+  // Sends the PDF to Nanonets and groups bounding box results by page number.
+  // Returns: { 1: [{text, x, y, w, h, confidence}], 2: [...], ... }
+  // ──────────────────────────────────────────────────────────────────────────
+  runOcrBtn.addEventListener('click', async () => {
+    if (!pdfDoc || !currentFile) return;
+
+    runOcrBtn.disabled = true;
+    runOcrBtn.classList.add('loading');
+    pageLoading.classList.add('active');
+
+    try {
+      const allPageBoxes = await callNanonetsOCR();
+      Object.assign(ocrResults, allPageBoxes);
+      drawBoxes(currentPage);
+      updateRightPanel(currentPage);
+      rightPanel.classList.add('active');
+    } catch (err) {
+      console.error('OCR failed:', err);
+      alert(`OCR failed: ${err.message}`);
+    } finally {
+      pageLoading.classList.remove('active');
+      runOcrBtn.classList.remove('loading');
+      runOcrBtn.disabled = false;
+    }
+  });
+
+  async function callNanonetsOCR() {
+    const formData = new FormData();
+    formData.append('file', currentFile);
+    formData.append('output_format', 'markdown');
+    formData.append('include_metadata', 'bounding_boxes_word');
+
+    const response = await fetch('/api/ocr', {
+      method: 'POST',
+      body: formData,   // Authorization header is added by the proxy server
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`API error ${response.status}: ${errText}`);
+    }
+
+    const data = await response.json();
+
+    // Validate the response path
+    const bbMeta = data?.result?.markdown?.metadata?.bounding_boxes;
+    if (!bbMeta?.success || !Array.isArray(bbMeta.elements)) {
+      throw new Error('Unexpected API response — bounding_boxes missing or empty.');
+    }
+
+    console.log('[OCR] Received', bbMeta.elements.length, 'elements');
+    if (bbMeta.elements.length) console.log('[OCR] Sample:', bbMeta.elements[0]);
+
+    // Group elements by page number into the ocrResults format.
+    // Skip zero-sized anchor-point elements (common for markdown headings).
+    const byPage = {};
+    for (const el of bbMeta.elements) {
+      const bb = el.bounding_box;
+      if (!bb || bb.width < 0.001 || bb.height < 0.001) continue;
+
+      const pg = bb.page ?? 1;
+      if (!byPage[pg]) byPage[pg] = [];
+
+      byPage[pg].push({
+        text:       bb.text || el.content || '',   // raw text at this box
+        x:          bb.x,
+        y:          bb.y,
+        w:          bb.width,
+        h:          bb.height,
+        confidence: bb.confidence ?? null,
+      });
+    }
+
+    return byPage;
+  }
+
+  // ── Bounding Box Drawing ──────────────────────────────────────────────────
+  const COLORS = {
+    normal:      { stroke: '#4f46e5', fill: 'rgba(79,70,229,0.08)'  },
+    hover:       { stroke: '#dc2626', fill: 'rgba(220,38,38,0.10)'  },
+    highlighted: { stroke: '#059669', fill: 'rgba(5,150,105,0.10)'  },
+  };
+
+  function drawBoxes(pageNum, hoverIdx = -1) {
+    const W = overlayCanvas.width;
+    const H = overlayCanvas.height;
+    overlayCtx.clearRect(0, 0, W, H);
+
+    const boxes = ocrResults[pageNum] || [];
+    boxes.forEach((box, i) => {
+      const x = box.x * W, y = box.y * H, w = box.w * W, h = box.h * H;
+
+      const c = i === highlightedIdx ? COLORS.highlighted
+              : i === hoverIdx       ? COLORS.hover
+              : COLORS.normal;
+
+      overlayCtx.fillStyle   = c.fill;
+      overlayCtx.strokeStyle = c.stroke;
+      overlayCtx.lineWidth   = 1.5;
+      overlayCtx.fillRect(x, y, w, h);
+      overlayCtx.strokeRect(x, y, w, h);
+    });
+  }
+
+  // ── Overlay Interactions ──────────────────────────────────────────────────
+  function hitTest(clientX, clientY) {
+    const boxes = ocrResults[currentPage];
+    if (!boxes || !boxes.length) return -1;
+
+    const rect  = overlayCanvas.getBoundingClientRect();
+    const scaleX = overlayCanvas.width  / rect.width;
+    const scaleY = overlayCanvas.height / rect.height;
+    const mx    = (clientX - rect.left) * scaleX;
+    const my    = (clientY - rect.top)  * scaleY;
+    const W     = overlayCanvas.width;
+    const H     = overlayCanvas.height;
+
+    for (let i = boxes.length - 1; i >= 0; i--) {
+      const bx = boxes[i].x * W, by = boxes[i].y * H;
+      const bw = boxes[i].w * W, bh = boxes[i].h * H;
+      if (mx >= bx && mx <= bx + bw && my >= by && my <= by + bh) return i;
+    }
+    return -1;
+  }
+
+  overlayCanvas.addEventListener('mousemove', e => {
+    const idx = hitTest(e.clientX, e.clientY);
+    drawBoxes(currentPage, idx);
+
+    if (idx >= 0) {
+      const boxes = ocrResults[currentPage];
+      tooltip.style.display = 'block';
+      tooltip.style.left    = (e.clientX + 14) + 'px';
+      tooltip.style.top     = (e.clientY - 32) + 'px';
+      tooltip.textContent   = boxes[idx].text;
+      overlayCanvas.style.cursor = 'pointer';
+    } else {
+      tooltip.style.display = 'none';
+      overlayCanvas.style.cursor = 'crosshair';
+    }
+  });
+
+  overlayCanvas.addEventListener('mouseleave', () => {
+    tooltip.style.display = 'none';
+    drawBoxes(currentPage);
+  });
+
+  overlayCanvas.addEventListener('click', e => {
+    const idx = hitTest(e.clientX, e.clientY);
+    if (idx >= 0) selectBlock(idx);
+  });
+
+  // ── Right Panel ───────────────────────────────────────────────────────────
+  function updateRightPanel(pageNum) {
+    const boxes = ocrResults[pageNum] || [];
+    blockCount.textContent = boxes.length;
+
+    if (!boxes.length) {
+      blocksList.innerHTML = '<div class="empty-state">Run OCR to see extracted text blocks here</div>';
+      return;
+    }
+
+    blocksList.innerHTML = '';
+    boxes.forEach((box, i) => {
+      const item = document.createElement('div');
+      item.className    = 'block-item';
+      item.dataset.index = i;
+
+      const t = document.createElement('div');
+      t.className   = 'block-text';
+      t.textContent = box.text;
+
+      const c = document.createElement('div');
+      c.className   = 'block-coords';
+      const conf = box.confidence != null ? `  conf ${Math.round(box.confidence * 100)}%` : '';
+      c.textContent = `x ${f(box.x)}  y ${f(box.y)}  w ${f(box.w)}  h ${f(box.h)}${conf}`;
+
+      item.appendChild(t);
+      item.appendChild(c);
+      item.addEventListener('click', () => selectBlock(i));
+      blocksList.appendChild(item);
+    });
+  }
+
+  function selectBlock(idx) {
+    highlightedIdx = idx;
+    drawBoxes(currentPage);
+
+    document.querySelectorAll('.block-item').forEach((el, i) => {
+      el.classList.toggle('highlighted', i === idx);
+    });
+
+    const el = blocksList.querySelector(`[data-index="${idx}"]`);
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  function f(n) { return n.toFixed(3); }
+
+  // ── Export ────────────────────────────────────────────────────────────────
+  exportBtn.addEventListener('click', () => {
+    const payload = {
+      filename: currentFilename,
+      pages: Object.entries(ocrResults).map(([pg, blocks]) => ({
+        page: parseInt(pg),
+        blocks,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), { href: url, download: currentFilename.replace(/\.pdf$/i, '-ocr.json') });
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+</script>
+</body>
+</html>
